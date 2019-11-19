@@ -33,6 +33,7 @@ inline constexpr int kNumPlayers = 1;
 inline constexpr int kNumNodes = 5;
 inline constexpr int kNumEdges = kNumNodes * kNumNodes; // parameter: number of edges, doesn't have to be fully connected
 inline constexpr int kEdgeStates = 3;  // -1, 0, 1 not able to connect, able to connect, connected
+inline constexpr auto kWeights = "";
 
 // inline constexpr int kNumberStates = 5478;
 
@@ -118,6 +119,12 @@ class MstGame : public Game {
     return {kEdgeStates, kNumNodes, kNumNodes};
   }
   int MaxGameLength() const { return kNumEdges; }
+  int NumNodes() const { return num_nodes_; }
+  std::string EdgeWeights() const { return edge_weights_; }
+
+ private:
+  int num_nodes_ = -1;
+  std::string edge_weights_ = "";
 };
 
 EdgeState PlayerToState(Player player);

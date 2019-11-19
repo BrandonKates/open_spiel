@@ -42,8 +42,10 @@ const GameType kGameType{
     /*provides_information_state_as_normalized_vector=*/false,
     /*provides_observation=*/true,
     /*provides_observation_as_normalized_vector=*/true,
-    /*parameter_specification=*/{}  // no parameters
-};
+    /*parameter_specification=*/
+    {{"num_nodes", GameParameter(kNumNodes)},
+     {"weights", GameParameter(kWeights)}}
+   };
 
 std::shared_ptr<const Game> Factory(const GameParameters& params) {
   return std::shared_ptr<const Game>(new MstGame(params));
@@ -198,6 +200,11 @@ bool MstState::ValidEdge(int edge) const{
 
 // Only set the diagonals to kEmpty --> no self-loops
 MstState::MstState(std::shared_ptr<const Game> game) : State(game) {
+  const MstGame& parent_game = static_cast<const MstGame&>(*game);
+  int num_nodes_ = parent_game.NumNodes();
+  std::string edge_weights_ = parent_game.EdgeWeights();
+  // Process edge_weights and set num_nodes_ to the number of nodes in the game
+
   std::fill(begin(adjMat_), end(adjMat_), EdgeState::kAvailable);
   std::fill(begin(weights_), end(weights_), 0);
   adjList_ = new std::vector<int>[kNumNodes];
@@ -273,7 +280,9 @@ std::unique_ptr<State> MstState::Clone() const {
 }
 
 MstGame::MstGame(const GameParameters& params)
-    : Game(kGameType, params) {}
+    : Game(kGameType, params),
+      num_nodes_(ParameterValue<int>("num_nodes")),
+      edge_weights_(ParameterValue<std::string>("weights")){}
 
 }  // namespace mst
 }  // namespace open_spiel
