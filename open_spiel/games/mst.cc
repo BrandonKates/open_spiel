@@ -199,6 +199,7 @@ bool MstState::ValidEdge(int edge) const{
 // Only set the diagonals to kEmpty --> no self-loops
 MstState::MstState(std::shared_ptr<const Game> game) : State(game) {
   std::fill(begin(adjMat_), end(adjMat_), EdgeState::kAvailable);
+  std::fill(begin(weights_), end(weights_), 0);
   adjList_ = new std::vector<int>[kNumNodes];
   for (int r = 0; r < kNumNodes; ++r) {
     //for (int c = 0; c < (r + 1); ++c) {

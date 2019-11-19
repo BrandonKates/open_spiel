@@ -30,7 +30,7 @@ namespace mst {
 
 // Constants.
 inline constexpr int kNumPlayers = 1;
-inline constexpr int kNumNodes = 30;
+inline constexpr int kNumNodes = 5;
 inline constexpr int kNumEdges = kNumNodes * kNumNodes; // parameter: number of edges, doesn't have to be fully connected
 inline constexpr int kEdgeStates = 3;  // -1, 0, 1 not able to connect, able to connect, connected
 
@@ -73,6 +73,7 @@ class MstState : public State {
 
  protected:
   std::array<EdgeState, kNumEdges> adjMat_;
+  std::array<float, kNumEdges> weights_;
   std::vector<int> *adjList_;
 
   void DoApplyAction(Action move) override;
