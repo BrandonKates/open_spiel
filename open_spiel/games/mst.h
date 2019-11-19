@@ -33,7 +33,7 @@ inline constexpr int kNumPlayers = 1;
 inline constexpr int kNumNodes = 5;
 inline constexpr int kNumEdges = kNumNodes * kNumNodes; // parameter: number of edges, doesn't have to be fully connected
 inline constexpr int kEdgeStates = 3;  // -1, 0, 1 not able to connect, able to connect, connected
-inline constexpr auto kWeights = "";
+inline constexpr auto kWeights = "0.0,0.33,0.37,0.19,0.84,0.33,0.0,0.18,0.42,0.58,0.37,0.18,0.0,0.39,0.46,0.19,0.42,0.39,0.0,0.82,0.84,0.58,0.46,0.82,0.0";
 
 // inline constexpr int kNumberStates = 5478;
 
@@ -58,8 +58,8 @@ class MstState : public State {
   std::string ActionToString(Player player, Action action_id) const override;
   std::string ToString() const override;
   bool IsTerminal() const override;
-  std::vector<double> Returns() const override;
-  std::vector<double> Rewards() const override;
+  std::vector<double> Returns() const override { std::vector<double> temp_ = {total_rewards_}; return temp_;};
+  std::vector<double> Rewards() const override { std::vector<double> temp_ = {reward_}; return temp_;};
   std::string InformationState(Player player) const override;
   std::string Observation(Player player) const override;
   void ObservationAsNormalizedVector(
@@ -74,7 +74,7 @@ class MstState : public State {
 
  protected:
   std::array<EdgeState, kNumEdges> adjMat_;
-  std::array<float, kNumEdges> weights_;
+  std::vector<float> weights_;
   std::vector<int> *adjList_;
 
   void DoApplyAction(Action move) override;
@@ -91,12 +91,12 @@ class MstState : public State {
   Player outcome_ = kInvalidPlayer;
   int num_moves_ = 0;
   // Fields sets to bad/invalid values. Use Game::NewInitialState().
-  double total_rewards_ = -1;
   int horizon_ = -1;        // Limit on the total number of moves.
   bool win_;        // True if agents push the big box to the goal.
 
   // Most recent rewards.
-  double reward_;
+  double reward_ = 0;
+  double total_rewards_ = 0;
 
 };
 
@@ -120,15 +120,16 @@ class MstGame : public Game {
   }
   int MaxGameLength() const { return kNumEdges; }
   int NumNodes() const { return num_nodes_; }
-  std::string EdgeWeights() const { return edge_weights_; }
+  std::vector<float> EdgeWeights() const { return edge_weights_; }
 
  private:
   int num_nodes_ = -1;
-  std::string edge_weights_ = "";
+  std::vector<float> edge_weights_ = {0.0,0.33,0.37,0.19,0.84,0.33,0.0,0.18,0.42,0.58,0.37,0.18,0.0,0.39,0.46,0.19,0.42,0.39,0.0,0.82,0.84,0.58,0.46,0.82,0.0};
 };
 
 EdgeState PlayerToState(Player player);
 std::string StateToString(EdgeState state);
+std::vector<float> ParseWeights(std::string values);
 
 inline std::ostream& operator<<(std::ostream& stream, const EdgeState& state) {
   return stream << StateToString(state);

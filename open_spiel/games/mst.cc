@@ -34,7 +34,7 @@ const GameType kGameType{
     GameType::Dynamics::kSequential,
     GameType::ChanceMode::kDeterministic,
     GameType::Information::kPerfectInformation,
-    GameType::Utility::kZeroSum,
+    GameType::Utility::kIdentical,
     GameType::RewardModel::kTerminal,
     /*max_num_players=*/1,
     /*min_num_players=*/1,
@@ -82,6 +82,19 @@ std::string StateToString(EdgeState state) {
   }
 }
 
+std::vector<float> ParseWeights(std::string values){
+  std::stringstream ss(values);
+  std::vector<float> result;
+
+  while( ss.good() )
+  {
+    std::string substr;
+    getline( ss, substr, ',' );
+    result.push_back( std::stof(substr) );
+  }
+  return result;
+}
+
 void MstState::DoApplyAction(Action move) {
   SPIEL_CHECK_EQ(adjMat_[move], EdgeState::kAvailable);
   int row = move / kNumNodes;
@@ -90,6 +103,9 @@ void MstState::DoApplyAction(Action move) {
   adjMat_[move] = EdgeState::kConnected;
   adjMat_[col * kNumNodes + row] = EdgeState::kConnected;
   AddEdge(move); //adds the edge to the adj_list
+
+  reward_ = -weights_[move];
+  total_rewards_ += reward_;
   num_moves_ += 1;
 }
 
@@ -202,11 +218,11 @@ bool MstState::ValidEdge(int edge) const{
 MstState::MstState(std::shared_ptr<const Game> game) : State(game) {
   const MstGame& parent_game = static_cast<const MstGame&>(*game);
   int num_nodes_ = parent_game.NumNodes();
-  std::string edge_weights_ = parent_game.EdgeWeights();
+  //std::string edge_weights_ = parent_game.EdgeWeights();
+  weights_ = parent_game.EdgeWeights();//ParseWeights(edge_weights_);
   // Process edge_weights and set num_nodes_ to the number of nodes in the game
 
   std::fill(begin(adjMat_), end(adjMat_), EdgeState::kAvailable);
-  std::fill(begin(weights_), end(weights_), 0);
   adjList_ = new std::vector<int>[kNumNodes];
   for (int r = 0; r < kNumNodes; ++r) {
     //for (int c = 0; c < (r + 1); ++c) {
@@ -233,16 +249,6 @@ std::string MstState::ToString() const {
 bool MstState::IsTerminal() const {
   //return outcome_ != kInvalidPlayer || HasNMinus1Edges();
   return outcome_ != kInvalidPlayer || HasNMinus1Edges();// && IsConnected());
-}
-
-std::vector<double> MstState::Returns() const {
-  // Cooperative game: all players get same reward.
-  return {total_rewards_};
-}
-
-std::vector<double> MstState::Rewards() const {
-  // Cooperative game: all players get same reward.
-  return {reward_};
 }
 
 std::string MstState::InformationState(Player player) const {
@@ -282,7 +288,8 @@ std::unique_ptr<State> MstState::Clone() const {
 MstGame::MstGame(const GameParameters& params)
     : Game(kGameType, params),
       num_nodes_(ParameterValue<int>("num_nodes")),
-      edge_weights_(ParameterValue<std::string>("weights")){}
+      edge_weights_(ParseWeights(ParameterValue<std::string>("weights")))
+    {}
 
 }  // namespace mst
 }  // namespace open_spiel
