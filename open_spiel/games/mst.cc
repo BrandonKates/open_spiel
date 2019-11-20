@@ -44,7 +44,7 @@ const GameType kGameType{
     /*provides_observation_as_normalized_vector=*/true,
     /*parameter_specification=*/
     {{"num_nodes", GameParameter(kNumNodes)},
-     {"weights", GameParameter(kWeights)}}
+     {"weights", GameParameter(std::string(kWeights))}}
    };
 
 std::shared_ptr<const Game> Factory(const GameParameters& params) {
@@ -97,11 +97,12 @@ std::vector<float> ParseWeights(std::string values){
 
 void MstState::DoApplyAction(Action move) {
   SPIEL_CHECK_EQ(adjMat_[move], EdgeState::kAvailable);
-  int row = move / kNumNodes;
-  int col = move % kNumNodes;
+  int row = move / num_nodes_;
+  int col = move % num_nodes_;
 
   adjMat_[move] = EdgeState::kConnected;
-  adjMat_[col * kNumNodes + row] = EdgeState::kConnected;
+  adjMat_[col * num_nodes_ + row] = EdgeState::kConnected;
+
   AddEdge(move); //adds the edge to the adj_list
 
   reward_ = -weights_[move];
@@ -113,14 +114,14 @@ std::vector<Action> MstState::LegalActions() const {
   if (IsTerminal()) return {};
   // Choose edges where value in adjacency matrix is kAvailable '0'.
   std::vector<Action> moves;
-  /*for (int r=0; r<kNumNodes; ++r){
-    for(int c=0; c<kNumNodes; ++c){
-      int edge = r * kNumNodes + c;
-      int otherEdge = c * kNumNodes + r;
+  /*for (int r=0; r<num_nodes_; ++r){
+    for(int c=0; c<num_nodes_; ++c){
+      int edge = r * num_nodes_ + c;
+      int otherEdge = c * num_nodes_ + r;
 
     }
   } */
-  for (int edge = 0; edge < kNumEdges; ++edge) {
+  for (int edge = 0; edge < num_edges_; ++edge) {
     if (adjMat_[edge] == EdgeState::kAvailable && ValidEdge(edge)) {
       moves.push_back(edge);
     }
@@ -131,7 +132,7 @@ std::vector<Action> MstState::LegalActions() const {
 std::string MstState::ActionToString(Player player,
                                            Action action_id) const {
   return absl::StrCat(StateToString(PlayerToState(player)), "(",
-                      action_id % kNumNodes, ",", action_id / kNumNodes, ")");
+                      action_id % num_nodes_, ",", action_id / num_nodes_, ")");
 }
 
 void MstState::AddEdge(int row, int column) const{ 
@@ -140,26 +141,26 @@ void MstState::AddEdge(int row, int column) const{
 }
 
 void MstState::AddEdge(int edge) const{
-  int row = edge / kNumNodes;
-  int col = edge % kNumNodes;
+  int row = edge / num_nodes_;
+  int col = edge % num_nodes_;
   AddEdge(row, col);
 }
 
 bool MstState::HasNMinus1Edges() const {
   int edgeCount = 0;
-  for (int cell = 0; cell < kNumEdges; ++cell) {
+  for (int cell = 0; cell < num_edges_; ++cell) {
     if (adjMat_[cell] == EdgeState::kConnected) {
       edgeCount += 1;
     }
   }
-  return edgeCount == 2*(kNumNodes - 1); // matrix is symmetric (so need 2(n-1) edges)
+  return edgeCount == 2*(num_nodes_ - 1); // matrix is symmetric (so need 2(n-1) edges)
 }
 
 bool MstState::IsConnected() const {
   int rowCount = 0;
-  for (int r = 0; r < kNumNodes; ++r) {
-    for (int c = 0; c < kNumNodes; ++c) {
-      if (AdjMatAt(r, c) == EdgeState::kConnected){ //adjMat_[row * kNumNodes + column]
+  for (int r = 0; r < num_nodes_; ++r) {
+    for (int c = 0; c < num_nodes_; ++c) {
+      if (AdjMatAt(r, c) == EdgeState::kConnected){ //adjMat_[row * num_nodes_ + column]
         rowCount += 1;
         break;
       }
@@ -196,50 +197,49 @@ bool MstState::IsCyclic(int v, bool visited[], int parent) const{
 } 
 
 bool MstState::HasCycle(int r, int c) const{
-  bool *visited = new bool[kNumNodes]; 
-  for (int i = 0; i < kNumNodes; i++) 
+  bool *visited = new bool[num_nodes_]; 
+  for (int i = 0; i < num_nodes_; i++) 
       visited[i] = false;
   visited[r] = true;
 
   if (IsCyclic(c, visited, r)){
-    //std::cout << c << "," << r << " contains cycle.\n";
     return true; 
   } 
   return false; 
 }
 
 bool MstState::ValidEdge(int edge) const{
-    int eRow = edge / kNumNodes;
-    int eCol = edge % kNumNodes;
+    int eRow = edge / num_nodes_;
+    int eCol = edge % num_nodes_;
     return not HasCycle(eRow, eCol);
 }
 
 // Only set the diagonals to kEmpty --> no self-loops
 MstState::MstState(std::shared_ptr<const Game> game) : State(game) {
   const MstGame& parent_game = static_cast<const MstGame&>(*game);
-  int num_nodes_ = parent_game.NumNodes();
-  //std::string edge_weights_ = parent_game.EdgeWeights();
-  weights_ = parent_game.EdgeWeights();//ParseWeights(edge_weights_);
-  // Process edge_weights and set num_nodes_ to the number of nodes in the game
+  num_nodes_ = parent_game.NumNodes();
+  weights_ = parent_game.EdgeWeights();
 
-  std::fill(begin(adjMat_), end(adjMat_), EdgeState::kAvailable);
-  adjList_ = new std::vector<int>[kNumNodes];
-  for (int r = 0; r < kNumNodes; ++r) {
+  num_edges_ = num_nodes_ * num_nodes_;
+  adjMat_ = std::vector<EdgeState>(num_edges_, EdgeState::kAvailable);
+  //std::fill(begin(adjMat_), end(adjMat_), EdgeState::kAvailable);
+  adjList_ = new std::vector<int>[num_nodes_];
+  for (int r = 0; r < num_nodes_; ++r) {
     //for (int c = 0; c < (r + 1); ++c) {
-      //adjMat_[r * kNumNodes + c] = EdgeState::kAvailable;
+      //adjMat_[r * num_nodes_ + c] = EdgeState::kAvailable;
     //}
-    adjMat_[r * kNumNodes + r] = EdgeState::kEmpty; // set diagonal to empty
+    adjMat_[r * num_nodes_ + r] = EdgeState::kEmpty; // set diagonal to empty
   }
 }
 
 std::string MstState::ToString() const {
   std::string str;
-  for (int r = 0; r < kNumNodes; ++r) {
-    for (int c = 0; c < kNumNodes; ++c) {
+  for (int r = 0; r < num_nodes_; ++r) {
+    for (int c = 0; c < num_nodes_; ++c) {
       absl::StrAppend(&str, StateToString(AdjMatAt(r, c)));
       absl::StrAppend(&str, ",");
     }
-    if (r < (kNumNodes - 1)) {
+    if (r < (num_nodes_ - 1)) {
       absl::StrAppend(&str, "\n");
     }
   }
@@ -267,8 +267,8 @@ void MstState::ObservationAsNormalizedVector(
   SPIEL_CHECK_LT(player, num_players_);
 
   // Treat `values` as a 2-d tensor.
-  TensorView<2> view(values, {kEdgeStates, kNumEdges}, true);
-  for (int cell = 0; cell < kNumEdges; ++cell) {
+  TensorView<2> view(values, {kEdgeStates, num_edges_}, true);
+  for (int cell = 0; cell < num_edges_; ++cell) {
     view[{static_cast<int>(adjMat_[cell]), cell}] = 1.0;
   }
 }
@@ -282,7 +282,7 @@ void MstState::UndoAction(Player player, Action move) {
 }
 
 std::unique_ptr<State> MstState::Clone() const {
-  return std::unique_ptr<State>(new MstState(*this));
+  return std::unique_ptr<MstState>(new MstState(*this));
 }
 
 MstGame::MstGame(const GameParameters& params)

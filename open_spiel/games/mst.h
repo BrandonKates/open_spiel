@@ -30,10 +30,9 @@ namespace mst {
 
 // Constants.
 inline constexpr int kNumPlayers = 1;
-inline constexpr int kNumNodes = 5;
-inline constexpr int kNumEdges = kNumNodes * kNumNodes; // parameter: number of edges, doesn't have to be fully connected
+inline constexpr int kNumNodes = 1;
 inline constexpr int kEdgeStates = 3;  // -1, 0, 1 not able to connect, able to connect, connected
-inline constexpr auto kWeights = "0.0,0.33,0.37,0.19,0.84,0.33,0.0,0.18,0.42,0.58,0.37,0.18,0.0,0.39,0.46,0.19,0.42,0.39,0.0,0.82,0.84,0.58,0.46,0.82,0.0";
+inline constexpr auto kWeights = "0";//"0.0,0.33,0.37,0.19,0.84,0.33,0.0,0.18,0.42,0.58,0.37,0.18,0.0,0.39,0.46,0.19,0.42,0.39,0.0,0.82,0.84,0.58,0.46,0.82,0.0";
 
 // inline constexpr int kNumberStates = 5478;
 
@@ -69,11 +68,13 @@ class MstState : public State {
   std::vector<Action> LegalActions() const override;
   EdgeState AdjMatAt(int cell) const { return adjMat_[cell]; }
   EdgeState AdjMatAt(int row, int column) const {
-    return adjMat_[row * kNumNodes + column];
+    return adjMat_[row * num_nodes_ + column];
   }
 
  protected:
-  std::array<EdgeState, kNumEdges> adjMat_;
+  int num_nodes_ = kNumNodes;
+  int num_edges_ = kNumNodes * kNumNodes;
+  std::vector<EdgeState> adjMat_;
   std::vector<float> weights_;
   std::vector<int> *adjList_;
 
@@ -91,8 +92,6 @@ class MstState : public State {
   Player outcome_ = kInvalidPlayer;
   int num_moves_ = 0;
   // Fields sets to bad/invalid values. Use Game::NewInitialState().
-  int horizon_ = -1;        // Limit on the total number of moves.
-  bool win_;        // True if agents push the big box to the goal.
 
   // Most recent rewards.
   double reward_ = 0;
@@ -104,10 +103,9 @@ class MstState : public State {
 class MstGame : public Game {
  public:
   explicit MstGame(const GameParameters& params);
-  int NumDistinctActions() const override { return kNumEdges; }
+  int NumDistinctActions() const override { return num_edges_; }
   std::unique_ptr<State> NewInitialState() const override {
-    return std::unique_ptr<State>(new MstState(shared_from_this()));
-  }
+    return std::unique_ptr<State>(new MstState(shared_from_this()));}
   int NumPlayers() const override { return kNumPlayers; }
   double MinUtility() const override { return -1; }
   double UtilitySum() const override { return 0; }
@@ -118,13 +116,14 @@ class MstGame : public Game {
   std::vector<int> ObservationNormalizedVectorShape() const override {
     return {kEdgeStates, kNumNodes, kNumNodes};
   }
-  int MaxGameLength() const { return kNumEdges; }
+  int MaxGameLength() const { return num_edges_; }
   int NumNodes() const { return num_nodes_; }
   std::vector<float> EdgeWeights() const { return edge_weights_; }
 
  private:
-  int num_nodes_ = -1;
-  std::vector<float> edge_weights_ = {0.0,0.33,0.37,0.19,0.84,0.33,0.0,0.18,0.42,0.58,0.37,0.18,0.0,0.39,0.46,0.19,0.42,0.39,0.0,0.82,0.84,0.58,0.46,0.82,0.0};
+  int num_nodes_ = -1; //set some defaults
+  int num_edges_ = -1; //defaults
+  std::vector<float> edge_weights_ = {-1};
 };
 
 EdgeState PlayerToState(Player player);
