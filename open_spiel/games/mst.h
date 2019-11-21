@@ -88,7 +88,7 @@ class MstState : public State {
   void AddEdge(int edge) const;
   bool HasNMinus1Edges() const; // Does the graph have N-1 edges?
   bool IsConnected() const; // Is the graph connected (is there an edge in each row of adjMat)
-  Player current_player_ = 1; // Player zero goes first
+  Player current_player_ = 0; // Player zero goes first
   Player outcome_ = kInvalidPlayer;
   int num_moves_ = 0;
   // Fields sets to bad/invalid values. Use Game::NewInitialState().
