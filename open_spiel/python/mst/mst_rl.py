@@ -29,7 +29,7 @@ from open_spiel.python import rl_environment
 FLAGS = flags.FLAGS
 
 flags.DEFINE_string("game", "mst", "Name of the game")
-flags.DEFINE_integer("num_nodes", None, "Number of nodes")
+flags.DEFINE_integer("num_nodes", 10, "Number of nodes")
 flags.DEFINE_string("load_state", None,
                     "A file containing a string to load a specific state")
 

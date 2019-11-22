@@ -50,6 +50,8 @@ class MstState : public State {
 
   MstState(const MstState&) = default;
   MstState& operator=(const MstState&) = default;
+  MstState(std::shared_ptr<const Game>, int num_nodes, std::vector<float> weights);
+
 
   Player CurrentPlayer() const override {
     return IsTerminal() ? kTerminalPlayerId : current_player_;
@@ -76,7 +78,7 @@ class MstState : public State {
   int num_edges_ = kNumNodes * kNumNodes;
   std::vector<EdgeState> adjMat_;
   std::vector<float> weights_;
-  std::vector<int> *adjList_;
+  std::vector<std::vector<int>> adjList_;
 
   void DoApplyAction(Action move) override;
 
@@ -84,8 +86,12 @@ class MstState : public State {
   bool ValidEdge(int edge) const;
   bool HasCycle(int r, int c) const;
   bool IsCyclic(int v, bool visited[], int parent) const;
-  void AddEdge(int row, int column) const;
-  void AddEdge(int edge) const;
+  void AddEdge(int row, int column);
+  void AddEdge(int edge);
+  /*
+  void RemoveEdge(int row, int column) const;
+  void RemoveEdge(int edge) const;
+  */
   bool HasNMinus1Edges() const; // Does the graph have N-1 edges?
   bool IsConnected() const; // Is the graph connected (is there an edge in each row of adjMat)
   Player current_player_ = 0; // Player zero goes first
@@ -103,9 +109,11 @@ class MstState : public State {
 class MstGame : public Game {
  public:
   explicit MstGame(const GameParameters& params);
-  int NumDistinctActions() const override { return num_edges_; }
+  int NumDistinctActions() const override { return num_nodes_ * num_nodes_; }
   std::unique_ptr<State> NewInitialState() const override {
-    return std::unique_ptr<State>(new MstState(shared_from_this()));}
+    return std::unique_ptr<State>(
+        new MstState(shared_from_this(), num_nodes_, edge_weights_));
+  }
   int NumPlayers() const override { return kNumPlayers; }
   double MinUtility() const override { return -1; }
   double UtilitySum() const override { return 0; }
@@ -116,14 +124,13 @@ class MstGame : public Game {
   std::vector<int> ObservationNormalizedVectorShape() const override {
     return {kEdgeStates, kNumNodes, kNumNodes};
   }
-  int MaxGameLength() const { return num_edges_; }
+  int MaxGameLength() const { return num_nodes_ * num_nodes_; }
   int NumNodes() const { return num_nodes_; }
   std::vector<float> EdgeWeights() const { return edge_weights_; }
 
  private:
-  int num_nodes_ = -1; //set some defaults
-  int num_edges_ = -1; //defaults
-  std::vector<float> edge_weights_ = {-1};
+  int num_nodes_ = 0; //set some defaults
+  std::vector<float> edge_weights_ = {};
 };
 
 EdgeState PlayerToState(Player player);

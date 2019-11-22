@@ -114,13 +114,6 @@ std::vector<Action> MstState::LegalActions() const {
   if (IsTerminal()) return {};
   // Choose edges where value in adjacency matrix is kAvailable '0'.
   std::vector<Action> moves;
-  /*for (int r=0; r<num_nodes_; ++r){
-    for(int c=0; c<num_nodes_; ++c){
-      int edge = r * num_nodes_ + c;
-      int otherEdge = c * num_nodes_ + r;
-
-    }
-  } */
   for (int edge = 0; edge < num_edges_; ++edge) {
     if (adjMat_[edge] == EdgeState::kAvailable && ValidEdge(edge)) {
       moves.push_back(edge);
@@ -135,17 +128,37 @@ std::string MstState::ActionToString(Player player,
                       action_id % num_nodes_, ",", action_id / num_nodes_, ")");
 }
 
-void MstState::AddEdge(int row, int column) const{ 
+void MstState::AddEdge(int row, int column){ 
   adjList_[row].push_back(column);
   adjList_[column].push_back(row); 
 }
 
-void MstState::AddEdge(int edge) const{
+void MstState::AddEdge(int edge){
   int row = edge / num_nodes_;
   int col = edge % num_nodes_;
   AddEdge(row, col);
 }
 
+/*
+void MstState::RemoveEdge(int row, int column) const{
+  // Delete column from row in adjList
+  std::vector<int>::iterator pos1 = std::find(adjList_[row].begin(), adjList_[row].end(), column);
+  if (pos1 != adjList_[row].end()) // == myVector.end() means the element was not found
+    adjList_[row].erase(pos1);
+
+  // Delete row from column in adjList
+  std::vector<int>::iterator pos2 = std::find(adjList_[column].begin(), adjList_[column].end(), row);
+  if (pos2 != adjList_[column].end()) // == myVector.end() means the element was not found
+    adjList_[column].erase(pos2);
+
+}
+
+void MstState::RemoveEdge(int edge) const{
+  int row = edge / num_nodes_;
+  int col = edge % num_nodes_;
+  RemoveEdge(row, col);
+}
+*/
 bool MstState::HasNMinus1Edges() const {
   int edgeCount = 0;
   for (int cell = 0; cell < num_edges_; ++cell) {
@@ -178,26 +191,28 @@ bool MstState::IsCyclic(int v, bool visited[], int parent) const{
   visited[v] = true; 
 
   // Recur for all the vertices adjacent to this vertex 
-  std::vector<int>::iterator i; 
-  for (i = adjList_[v].begin(); i != adjList_[v].end(); ++i) 
-  { 
+  //std::vector<int>::iterator i; 
+  //for (i = adjList_[v].begin(); i != adjList_[v].end(); ++i) 
+  for(int i=0; i<adjList_[v].size(); ++i)
+  {
+    int u = adjList_[v][i];
     // If an adjacent is not visited, then recur for that adjacent 
-    if (!visited[*i]) 
+    if (!visited[u]) 
     { 
-    if (IsCyclic(*i, visited, v)) 
+    if (IsCyclic(u, visited, v)) 
       return true; 
     } 
 
     // If an adjacent is visited and not parent of current vertex, 
     // then there is a cycle. 
-    else if (*i != parent) 
+    else if (u != parent) 
     return true; 
   } 
   return false; 
 } 
 
 bool MstState::HasCycle(int r, int c) const{
-  bool *visited = new bool[num_nodes_]; 
+  bool visited[num_nodes_];
   for (int i = 0; i < num_nodes_; i++) 
       visited[i] = false;
   visited[r] = true;
@@ -215,15 +230,26 @@ bool MstState::ValidEdge(int edge) const{
 }
 
 // Only set the diagonals to kEmpty --> no self-loops
-MstState::MstState(std::shared_ptr<const Game> game) : State(game) {
-  const MstGame& parent_game = static_cast<const MstGame&>(*game);
-  num_nodes_ = parent_game.NumNodes();
-  weights_ = parent_game.EdgeWeights();
+MstState::MstState(std::shared_ptr<const Game> game, int num_nodes, std::vector<float> weights) 
+  : State(game),
+  num_nodes_(num_nodes),
+  weights_(weights),
+  num_edges_(num_nodes * num_nodes),
+  adjMat_(std::vector<EdgeState>(num_nodes * num_nodes, EdgeState::kAvailable)),
+  adjList_(std::vector<std::vector<int>>(num_nodes)) {
+  //const MstGame& parent_game = static_cast<const MstGame&>(*game);
+  //num_nodes_ = parent_game.NumNodes();
+  //weights_ = parent_game.EdgeWeights();
 
-  num_edges_ = num_nodes_ * num_nodes_;
-  adjMat_ = std::vector<EdgeState>(num_edges_, EdgeState::kAvailable);
+  //num_edges_ = num_nodes_ * num_nodes_;
+  //adjMat_ = std::vector<EdgeState>(num_edges_, EdgeState::kAvailable);
   //std::fill(begin(adjMat_), end(adjMat_), EdgeState::kAvailable);
-  adjList_ = new std::vector<int>[num_nodes_];
+  //adjList_ = new std::vector<int>[num_nodes_];
+  
+  //Make sure our adjacency list is clean
+  for(int i=0; i<num_nodes_;++i){
+    adjList_[i].clear();
+  }
   for (int r = 0; r < num_nodes_; ++r) {
     //for (int c = 0; c < (r + 1); ++c) {
       //adjMat_[r * num_nodes_ + c] = EdgeState::kAvailable;
@@ -234,6 +260,7 @@ MstState::MstState(std::shared_ptr<const Game> game) : State(game) {
 
 std::string MstState::ToString() const {
   std::string str;
+  absl::StrAppend(&str, "Num_Nodes: ", num_nodes_, "\n");
   for (int r = 0; r < num_nodes_; ++r) {
     for (int c = 0; c < num_nodes_; ++c) {
       absl::StrAppend(&str, StateToString(AdjMatAt(r, c)));
@@ -243,6 +270,17 @@ std::string MstState::ToString() const {
       absl::StrAppend(&str, "\n");
     }
   }
+  absl::StrAppend(&str, "\nAdjacency List:\n");
+  //std::vector<int>::iterator j;
+    for(int i=0; i<num_nodes_;++i){
+      absl::StrAppend(&str, i, ": ");
+      //for (j = adjList_[i].begin(); j != adjList_[i].end(); ++j)
+      for(int j=0; j<adjList_[i].size(); ++j) 
+      {
+        absl::StrAppend(&str, adjList_[i][j], ",");
+      }
+      absl::StrAppend(&str, "\n");
+    }
   return str;
 }
 
@@ -275,6 +313,7 @@ void MstState::ObservationAsNormalizedVector(
 
 void MstState::UndoAction(Player player, Action move) {
   adjMat_[move] = EdgeState::kAvailable;
+  //RemoveEdge(move);
   current_player_ = player;
   outcome_ = kInvalidPlayer;
   num_moves_ -= 1;
