@@ -50,6 +50,8 @@ set(GAME_SOURCES
   matrix_games.cc
   mst.cc
   mst.h
+  mst/mst_medium.cc
+  mst/mst_medium.h
   negotiation.cc
   negotiation.h
   oshi_zumo.cc

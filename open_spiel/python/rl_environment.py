@@ -155,10 +155,10 @@ class Environment(object):
       game_settings = {
           key: pyspiel.GameParameter(val) for (key, val) in kwargs.items()
       }
-      logging.info("Using game settings: %s", game_settings)
+      #logging.info("Using game settings: %s", game_settings)
       self._game = pyspiel.load_game(game_name, game_settings)
     else:
-      logging.info("Using game string: %s", game_name)
+      #logging.info("Using game string: %s", game_name)
       self._game = pyspiel.load_game(game_name)
 
     self._num_players = self._game.num_players()

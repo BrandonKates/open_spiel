@@ -63,6 +63,7 @@ class PyspielTest(absltest.TestCase):
         "matrix_shapleys_game",
         "misere",
         "mst",
+        "mst_medium",
         "negotiation",
         "oshi_zumo",
         "oware",

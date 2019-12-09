@@ -31,7 +31,7 @@ from open_spiel.python.algorithms import random_agent
 FLAGS = flags.FLAGS
 
 # Training parameters
-flags.DEFINE_string("checkpoint_dir", "/tmp/dqn_test",
+flags.DEFINE_string("checkpoint_dir", "/tmp/dqn_test", 
                     "Directory to save/load the agent.")
 flags.DEFINE_integer("num_train_episodes", int(1e6),
                      "Number of training episodes.")
@@ -76,14 +76,15 @@ def eval_against_random_bots(env, trained_agents, random_agents, num_episodes):
 
 
 def main(_):
-  game = "breakthrough"
+  game = "connect_four"
   num_players = 2
 
-  env_configs = {"columns": 5, "rows": 5}
+  env_configs = {}#{"columns": 5, "rows": 5}
   env = rl_environment.Environment(game, **env_configs)
   info_state_size = env.observation_spec()["info_state"][0]
   num_actions = env.action_spec()["num_actions"]
-
+  print("Info State: ", info_state_size)
+  print("Num Actions: ", num_actions)
   # random agents for evaluation
   random_agents = [
       random_agent.RandomAgent(player_id=idx, num_actions=num_actions)
