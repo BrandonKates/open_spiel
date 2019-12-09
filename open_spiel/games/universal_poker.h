@@ -15,13 +15,13 @@
 #ifndef THIRD_PARTY_OPEN_SPIEL_GAMES_UNIVERSAL_POKER_H_
 #define THIRD_PARTY_OPEN_SPIEL_GAMES_UNIVERSAL_POKER_H_
 
-#include <open_spiel/games/universal_poker/logic/game_tree.h>
-
 #include <array>
 #include <memory>
 #include <string>
 #include <vector>
 
+#include "open_spiel/games/universal_poker/logic/betting_tree.h"
+#include "open_spiel/games/universal_poker/logic/card_set.h"
 #include "open_spiel/spiel.h"
 
 // This is a wrapper around the Annual Computer Poker Competition bot (ACPC)
@@ -47,12 +47,12 @@ class UniversalPokerState : public State {
   std::string ToString() const override;
   bool IsTerminal() const override;
   std::vector<double> Returns() const override;
-  std::string InformationState(Player player) const override;
-  std::string Observation(Player player) const override;
-  void InformationStateAsNormalizedVector(
-      Player player, std::vector<double> *values) const override;
-  void ObservationAsNormalizedVector(
-      Player player, std::vector<double> *values) const override;
+  std::string InformationStateString(Player player) const override;
+  std::string ObservationString(Player player) const override;
+  void InformationStateTensor(Player player,
+                              std::vector<double> *values) const override;
+  void ObservationTensor(Player player,
+                         std::vector<double> *values) const override;
   std::unique_ptr<State> Clone() const override;
 
   // The probability of taking each possible action in a particular info state.
@@ -62,9 +62,16 @@ class UniversalPokerState : public State {
  protected:
   void DoApplyAction(Action action_id) override;
 
- private:
-  logic::GameTree *gameTree_;
-  logic::GameTree::GameNode gameNode_;
+ public:
+  const acpc_cpp::ACPCGame *acpc_game_;
+  logic::BettingNode betting_node_;
+  double GetTotalReward(Player player) const;
+
+  logic::CardSet deck_;  // The remaining cards to deal.
+  int action_count_;
+  // The cards already owned by each player
+  std::vector<logic::CardSet> hole_cards_;
+  logic::CardSet board_cards_;
 };
 
 class UniversalPokerGame : public Game {
@@ -77,18 +84,18 @@ class UniversalPokerGame : public Game {
   double MinUtility() const override;
   double MaxUtility() const override;
   int MaxChanceOutcomes() const override;
-  double UtilitySum() const override;
+  double UtilitySum() const override { return 0; }
   std::shared_ptr<const Game> Clone() const override;
-  std::vector<int> InformationStateNormalizedVectorShape() const override;
-  std::vector<int> ObservationNormalizedVectorShape() const override;
+  std::vector<int> InformationStateTensorShape() const override;
+  std::vector<int> ObservationTensorShape() const override;
   int MaxGameLength() const override;
 
  private:
   std::string gameDesc_;
-  logic::GameTree gameTree_;
+  const acpc_cpp::ACPCGame acpc_game_;
 
  public:
-  logic::GameTree *GetGameTree();
+  const acpc_cpp::ACPCGame *GetACPCGame() const { return &acpc_game_; }
 
   std::string parseParameters(const GameParameters &map);
 };

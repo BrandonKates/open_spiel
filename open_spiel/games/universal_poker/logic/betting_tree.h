@@ -24,10 +24,24 @@ namespace open_spiel {
 namespace universal_poker {
 namespace logic {
 
-constexpr uint8_t MAX_PLAYERS = 10;
+constexpr uint8_t kMaxUniversalPokerPlayers = 10;
 
-class BettingTree : public acpc_cpp::ACPCGame {
+// Returns how many actions are available at a choice node (3 when limit
+// and 4 for no limit).
+// TODO(author2): Is that a bug? There are 5 actions? Is no limit means
+// "bet bot" is added? or should "all in" be also added?
+inline uint32_t GetMaxBettingActions(const acpc_cpp::ACPCGame& acpc_game) {
+  return acpc_game.IsLimitGame() ? 3 : 4;
+}
+
+class BettingNode : public acpc_cpp::ACPCState {
  public:
+  enum NodeType {
+    NODE_TYPE_CHANCE,
+    NODE_TYPE_CHOICE,
+    NODE_TYPE_TERMINAL_FOLD,
+    NODE_TYPE_TERMINAL_SHOWDOWN
+  };
   enum ActionType {
     ACTION_DEAL = 1,
     ACTION_FOLD = 2,
@@ -39,51 +53,36 @@ class BettingTree : public acpc_cpp::ACPCGame {
                                                 ACTION_CHECK_CALL,
                                                 ACTION_BET_POT, ACTION_ALL_IN};
 
- public:
-  class BettingNode : public acpc_cpp::ACPCGame::ACPCState {
-    friend BettingTree;
+  BettingNode(const acpc_cpp::ACPCGame* acpc_game);
 
-   public:
-    enum NodeType {
-      NODE_TYPE_CHANCE,
-      NODE_TYPE_CHOICE,
-      NODE_TYPE_TERMINAL_FOLD,
-      NODE_TYPE_TERMINAL_SHOWDOWN
-    };
+  NodeType GetNodeType() const { return nodeType_; }
 
-    BettingNode(BettingTree* bettingTree);
+  const uint32_t& GetPossibleActionsMask() const;
+  const int GetPossibleActionCount() const;
 
-   public:
-    NodeType GetNodeType() const;
+  void ApplyChoiceAction(ActionType action_type);
+  virtual void ApplyDealCards();
+  std::string ToString() const;
+  int GetDepth();
+  std::string GetActionSequence() const;
+  bool IsFinished() const;
 
-    const uint32_t& GetPossibleActionsMask() const;
-    const int GetPossibleActionCount() const;
+ protected:
+  const acpc_cpp::ACPCGame* acpc_game_;
 
-    void ApplyChoiceAction(ActionType actionType);
-    virtual void ApplyDealCards();
-    std::string ToString() const;
-    int GetDepth();
-    std::string GetActionSequence() const;
-    bool IsFinished() const;
+ private:
+  NodeType nodeType_;
+  uint32_t possibleActions_;
+  int32_t potSize_;
+  int32_t allInSize_;
+  std::string actionSequence_;
 
-   private:
-    const BettingTree* bettingTree_;
-    NodeType nodeType_;
-    uint32_t possibleActions_;
-    int32_t potSize_;
-    int32_t allInSize_;
-    std::string actionSequence_;
+  uint8_t nbHoleCardsDealtPerPlayer_[kMaxUniversalPokerPlayers];
+  uint8_t nbBoardCardsDealt_;
 
-    uint8_t nbHoleCardsDealtPerPlayer_[MAX_PLAYERS];
-    uint8_t nbBoardCardsDealt_;
-
-    void _CalculateActionsAndNodeType();
-  };
-
- public:
-  BettingTree(const std::string& gameDef);
-  uint32_t GetMaxBettingActions() const;
+  void _CalculateActionsAndNodeType();
 };
+
 }  // namespace logic
 }  // namespace universal_poker
 }  // namespace open_spiel

@@ -88,12 +88,11 @@ def play_bot_in_scenarios(game, bots, scenarios=None):
   for scenario in scenarios:
     state = game.new_initial_state()
     bot = bots[scenario.player_id]
-    bot.restart(state)
+    bot.restart()
     for action_str in scenario.init_actions:
       action = state.string_to_action(action_str)
       if state.current_player() == scenario.player_id:
-        bot.step(state)
-      bot.apply_action(action)
+        bot.force_action(state, action)
       state.apply_action(action)
     actions_and_probs, _ = bot.step(state)
     expected_action = state.string_to_action(scenario.expected_action_str)
@@ -106,7 +105,8 @@ def play_bot_in_scenarios(game, bots, scenarios=None):
                     scenario.expected_prob, actual_prob))
     total_score += score
 
-  total_score /= len(scenarios)
+  if scenarios:
+    total_score /= len(scenarios)
   logging.info("Average score across all scenarios: %.4f.", total_score)
   results_dict = {}
   for name, score, expected_action, expected_prob, actual_prob in results:

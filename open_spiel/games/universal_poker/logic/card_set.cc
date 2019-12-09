@@ -29,6 +29,7 @@ extern "C" {
 }
 
 namespace open_spiel::universal_poker::logic {
+
 using I = uint64_t;
 
 auto dump(I v) { return std::bitset<sizeof(I) * __CHAR_BIT__>(v); }
@@ -38,8 +39,6 @@ I bit_twiddle_permute(I v) {
 
   return w;
 }
-
-CardSet::CardSet() : cs() {}
 
 CardSet::CardSet(std::string cardString) : cs() {
   for (int i = 0; i < cardString.size(); i += 2) {
@@ -54,7 +53,7 @@ CardSet::CardSet(std::string cardString) : cs() {
 }
 
 CardSet::CardSet(std::vector<int> cards) : cs() {
-  for (int i = 0; i < cards.size(); i++) {
+  for (int i = 0; i < cards.size(); ++i) {
     int rank = rankOfCard(cards[i]);
     int suit = suitOfCard(cards[i]);
 
@@ -62,18 +61,9 @@ CardSet::CardSet(std::vector<int> cards) : cs() {
   }
 }
 
-CardSet::CardSet(uint8_t *cards, int size) : cs() {
-  for (int i = 0; i < size; i++) {
-    int rank = rankOfCard(cards[i]);
-    int suit = suitOfCard(cards[i]);
-
-    cs.bySuit[suit] |= ((uint16_t)1 << rank);
-  }
-}
-
-CardSet::CardSet(uint16_t numSuits, uint16_t numRanks) : cs() {
-  for (uint16_t r = 0; r < numRanks; r++) {
-    for (uint16_t s = 0; s < numSuits; s++) {
+CardSet::CardSet(uint16_t num_suits, uint16_t num_ranks) : cs() {
+  for (uint16_t r = 0; r < num_ranks; r++) {
+    for (uint16_t s = 0; s < num_suits; s++) {
       cs.bySuit[s] |= ((uint16_t)1 << r);
     }
   }
@@ -94,7 +84,7 @@ std::string CardSet::ToString() const {
 }
 
 std::vector<uint8_t> CardSet::ToCardArray() const {
-  std::vector<uint8_t> result(CountCards(), 0);
+  std::vector<uint8_t> result(NumCards(), 0);
 
   int i = 0;
   for (int r = MAX_RANKS - 1; r >= 0; r--) {
@@ -122,23 +112,19 @@ void CardSet::RemoveCard(uint8_t card) {
   cs.bySuit[suit] ^= ((uint16_t)1 << rank);
 }
 
-uint32_t CardSet::CountCards() const { return __builtin_popcountl(cs.cards); }
+int CardSet::NumCards() const { return __builtin_popcountl(cs.cards); }
 
-int CardSet::RankCards() {
-  Cardset csNative;
+int CardSet::RankCards() const {
+  ::Cardset csNative;
   csNative.cards = cs.cards;
   return rankCardset(csNative);
-}
-
-bool CardSet::IsBlocking(CardSet other) {
-  return (cs.cards & other.cs.cards) > 0;
 }
 
 std::vector<CardSet> CardSet::SampleCards(int nbCards) {
   std::vector<CardSet> combinations;
 
   uint64_t p = 0;
-  for (int i = 0; i < nbCards; i++) {
+  for (int i = 0; i < nbCards; ++i) {
     p += (1 << i);
   }
 
@@ -155,7 +141,7 @@ std::vector<CardSet> CardSet::SampleCards(int nbCards) {
   return combinations;
 }
 
-bool CardSet::ContainsCards(const uint8_t &card) {
+bool CardSet::ContainsCards(uint8_t card) const {
   int rank = rankOfCard(card);
   int suit = suitOfCard(card);
   return (cs.bySuit[suit] & ((uint16_t)1 << rank)) > 0;

@@ -24,33 +24,22 @@ namespace logic {
 
 const char* actions = "0df0c000p0000000a";
 
-BettingTree::BettingTree(const std::string& gameDef) : ACPCGame(gameDef) {}
-
-uint32_t BettingTree::GetMaxBettingActions() const {
-  return IsLimitGame() ? 3 : 4;
-}
-
-BettingTree::BettingNode::BettingNode(BettingTree* bettingTree)
-    : ACPCState(bettingTree),
-      bettingTree_(bettingTree),
+BettingNode::BettingNode(const acpc_cpp::ACPCGame* acpc_game)
+    : ACPCState(acpc_game),
+      acpc_game_(acpc_game),
       nodeType_(NODE_TYPE_CHANCE),
       possibleActions_(ACTION_DEAL),
-      nbBoardCardsDealt_(0),
-      nbHoleCardsDealtPerPlayer_{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
       potSize_(0),
-      allInSize_(0) {}
+      allInSize_(0),
+      nbHoleCardsDealtPerPlayer_{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+      nbBoardCardsDealt_(0) {}
 
-BettingTree::BettingNode::NodeType BettingTree::BettingNode::GetNodeType()
-    const {
-  return nodeType_;
-}
-
-void BettingTree::BettingNode::ApplyChoiceAction(ActionType actionType) {
+void BettingNode::ApplyChoiceAction(ActionType action_type) {
   assert(nodeType_ == NODE_TYPE_CHOICE);
-  assert((possibleActions_ & actionType) > 0);
+  assert((possibleActions_ & action_type) > 0);
 
-  actionSequence_ += (char)actions[actionType];
-  switch (actionType) {
+  actionSequence_ += (char)actions[action_type];
+  switch (action_type) {
     case ACTION_FOLD:
       DoAction(ACPC_FOLD, 0);
       break;
@@ -72,20 +61,19 @@ void BettingTree::BettingNode::ApplyChoiceAction(ActionType actionType) {
   _CalculateActionsAndNodeType();
 }
 
-void BettingTree::BettingNode::ApplyDealCards() {
+void BettingNode::ApplyDealCards() {
   assert(nodeType_ == NODE_TYPE_CHANCE);
   actionSequence_ += 'd';
 
-  for (uint8_t p = 0; p < bettingTree_->GetNbPlayers(); p++) {
-    if (nbHoleCardsDealtPerPlayer_[p] <
-        bettingTree_->GetNbHoleCardsRequired()) {
+  for (uint8_t p = 0; p < acpc_game_->GetNbPlayers(); p++) {
+    if (nbHoleCardsDealtPerPlayer_[p] < acpc_game_->GetNbHoleCardsRequired()) {
       nbHoleCardsDealtPerPlayer_[p]++;
       _CalculateActionsAndNodeType();
       return;
     }
   }
 
-  if (nbBoardCardsDealt_ < bettingTree_->GetNbBoardCardsRequired(GetRound())) {
+  if (nbBoardCardsDealt_ < acpc_game_->GetNbBoardCardsRequired(GetRound())) {
     nbBoardCardsDealt_++;
     _CalculateActionsAndNodeType();
     return;
@@ -94,15 +82,15 @@ void BettingTree::BettingNode::ApplyDealCards() {
   assert(false);
 }
 
-void BettingTree::BettingNode::_CalculateActionsAndNodeType() {
+void BettingNode::_CalculateActionsAndNodeType() {
   possibleActions_ = 0;
 
   if (ACPCState::IsFinished()) {
-    if (NumFolded() >= bettingTree_->GetNbPlayers() - 1) {
+    if (NumFolded() >= acpc_game_->GetNbPlayers() - 1) {
       nodeType_ = NODE_TYPE_TERMINAL_FOLD;
     } else {
       if (nbBoardCardsDealt_ <
-          bettingTree_->GetNbBoardCardsRequired(GetRound())) {
+          acpc_game_->GetNbBoardCardsRequired(GetRound())) {
         nodeType_ = NODE_TYPE_CHANCE;
         possibleActions_ = ACTION_DEAL;
         return;
@@ -112,16 +100,15 @@ void BettingTree::BettingNode::_CalculateActionsAndNodeType() {
 
   } else {
     // Check for sth to deal
-    for (uint8_t p = 0; p < bettingTree_->GetNbPlayers(); p++) {
+    for (int p = 0; p < acpc_game_->GetNbPlayers(); ++p) {
       if (nbHoleCardsDealtPerPlayer_[p] <
-          bettingTree_->GetNbHoleCardsRequired()) {
+          acpc_game_->GetNbHoleCardsRequired()) {
         nodeType_ = NODE_TYPE_CHANCE;
         possibleActions_ = ACTION_DEAL;
         return;
       }
     }
-    if (nbBoardCardsDealt_ <
-        bettingTree_->GetNbBoardCardsRequired(GetRound())) {
+    if (nbBoardCardsDealt_ < acpc_game_->GetNbBoardCardsRequired(GetRound())) {
       nodeType_ = NODE_TYPE_CHANCE;
       possibleActions_ = ACTION_DEAL;
       return;
@@ -140,12 +127,12 @@ void BettingTree::BettingNode::_CalculateActionsAndNodeType() {
     allInSize_ = 0;
 
     if (RaiseIsValid(&potSize_, &allInSize_)) {
-      if (bettingTree_->IsLimitGame()) {
+      if (acpc_game_->IsLimitGame()) {
         potSize_ = 0;
         possibleActions_ |= ACTION_BET_POT;
       } else {
         int32_t currentPot =
-            MaxSpend() * (bettingTree_->GetNbPlayers() - NumFolded());
+            MaxSpend() * (acpc_game_->GetNbPlayers() - NumFolded());
         potSize_ = currentPot > potSize_ ? currentPot : potSize_;
         potSize_ = allInSize_ < potSize_ ? allInSize_ : potSize_;
 
@@ -158,7 +145,7 @@ void BettingTree::BettingNode::_CalculateActionsAndNodeType() {
   }
 }
 
-std::string BettingTree::BettingNode::ToString() const {
+std::string BettingNode::ToString() const {
   std::ostringstream buf;
   buf << "NodeType: ";
   buf << (nodeType_ == NODE_TYPE_CHANCE ? "NODE_TYPE_CHANCE" : "");
@@ -187,7 +174,7 @@ std::string BettingTree::BettingNode::ToString() const {
   return buf.str();
 }
 
-int BettingTree::BettingNode::GetDepth() {
+int BettingNode::GetDepth() {
   int maxDepth = 0;
   for (auto action : ALL_ACTIONS) {
     if (action & possibleActions_) {
@@ -205,11 +192,9 @@ int BettingTree::BettingNode::GetDepth() {
   return 1 + maxDepth;
 }
 
-std::string BettingTree::BettingNode::GetActionSequence() const {
-  return actionSequence_;
-}
+std::string BettingNode::GetActionSequence() const { return actionSequence_; }
 
-bool BettingTree::BettingNode::IsFinished() const {
+bool BettingNode::IsFinished() const {
   bool finished = nodeType_ == NODE_TYPE_TERMINAL_SHOWDOWN ||
                   nodeType_ == NODE_TYPE_TERMINAL_FOLD;
   assert(ACPCState::IsFinished() || !finished);
@@ -217,12 +202,12 @@ bool BettingTree::BettingNode::IsFinished() const {
   return finished;
 }
 
-const int BettingTree::BettingNode::GetPossibleActionCount() const {
-  int result = __builtin_popcount(possibleActions_);
-  return result;
+const int BettingNode::GetPossibleActionCount() const {
+  // _builtin_popcount(int) function is used to count the number of one's
+  return __builtin_popcount(possibleActions_);
 }
 
-const uint32_t& BettingTree::BettingNode::GetPossibleActionsMask() const {
+const uint32_t& BettingNode::GetPossibleActionsMask() const {
   return possibleActions_;
 }
 

@@ -42,6 +42,7 @@ class PyspielTest(absltest.TestCase):
         "coin_game",
         "connect_four",
         "coop_box_pushing",
+        "coop_to_1p",
         "first_sealed_auction",
         "go",
         "goofspiel",
@@ -78,6 +79,7 @@ class PyspielTest(absltest.TestCase):
         "turn_based_simultaneous_game",
         "y",
     ])
+
     if os.environ.get("BUILD_WITH_HANABI", "OFF") == "ON":
       expected.add("hanabi")
     if os.environ.get("BUILD_WITH_ACPC", "OFF") == "ON":
@@ -138,6 +140,10 @@ class PyspielTest(absltest.TestCase):
     state.apply_action(2)
     self.assertEqual(state.is_chance_node(), False)
     self.assertEqual(state.legal_actions(), [0, 1])
+    sampler = pyspiel.UniformProbabilitySampler(0., 1.)
+    clone = state.resample_from_infostate(1, sampler)
+    self.assertEqual(
+        clone.information_state_string(1), state.information_state_string(1))
 
   def test_tic_tac_toe(self):
     game = pyspiel.load_game("tic_tac_toe")

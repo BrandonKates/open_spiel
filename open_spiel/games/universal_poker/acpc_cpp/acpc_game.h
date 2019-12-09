@@ -15,61 +15,66 @@
 #ifndef OPEN_SPIEL_ACPC_GAME_H
 #define OPEN_SPIEL_ACPC_GAME_H
 
-static const int STRING_BUFFERSIZE = 4096;
-
 #include <memory>
 #include <string>
 
-namespace open_spiel::universal_poker::acpc_cpp {
-struct Game;
-struct State;
-struct Action;
+namespace open_spiel {
+namespace universal_poker {
+namespace acpc_cpp {
+
+// We could have included "project_acpc_server/game.h" here, and directly
+// expose the structs, but this would pollute the top level namespace.
+// Thus, to prevent from leaking all the symbols, we create wrappers that will
+// expose the structure fields through methods only.
+struct RawACPCGame;
+struct RawACPCState;
+struct RawACPCAction;
+
+class ACPCGame;
+
+class ACPCState {
+ public:
+  enum ACPCActionType { ACPC_FOLD, ACPC_CALL, ACPC_RAISE, ACPC_INVALID };
+
+ public:
+  ACPCState(const ACPCGame* game);
+  ACPCState(const ACPCState& other);
+  virtual ~ACPCState();
+
+  void SetHoleAndBoardCards(uint8_t holeCards[10][3], uint8_t boardCards[7],
+                            uint8_t nbHoleCards[10],
+                            uint8_t nbBoardCards) const;
+
+  uint8_t CurrentPlayer() const;
+
+  bool IsFinished() const;
+  int RaiseIsValid(int32_t* minSize, int32_t* maxSize) const;
+  int IsValidAction(const ACPCActionType actionType, const int32_t size) const;
+  void DoAction(const ACPCActionType actionType, const int32_t size);
+  double ValueOfState(const uint8_t player) const;
+  uint32_t MaxSpend() const;
+  uint8_t GetRound() const;
+  uint8_t NumFolded() const;
+  uint32_t Money(const uint8_t player) const;
+  uint32_t Ante(const uint8_t player) const;
+  std::string ToString() const;
+  std::string BettingSequence(uint8_t round) const;
+
+  const ACPCGame* game_;
+  std::unique_ptr<RawACPCState> acpcState_;
+};
 
 class ACPCGame {
  public:
-  class ACPCState {
-   public:
-    enum ACPCActionType { ACPC_FOLD, ACPC_CALL, ACPC_RAISE, ACPC_INVALID };
-
-   public:
-    ACPCState(ACPCGame* game);
-    ACPCState(const ACPCState& game);
-    virtual ~ACPCState();
-
-    void SetHoleAndBoardCards(uint8_t holeCards[10][3], uint8_t boardCards[7],
-                              uint8_t nbHoleCards[10],
-                              uint8_t nbBoardCards) const;
-
-    uint8_t CurrentPlayer() const;
-
-    virtual bool IsFinished() const;
-    int RaiseIsValid(int32_t* minSize, int32_t* maxSize) const;
-    int IsValidAction(const ACPCActionType actionType,
-                      const int32_t size) const;
-    void DoAction(const ACPCActionType actionType, const int32_t size);
-    double ValueOfState(const uint8_t player) const;
-    uint32_t MaxSpend() const;
-    uint8_t GetRound() const;
-    uint8_t NumFolded() const;
-    uint32_t Money(const uint8_t player) const;
-    uint32_t Ante(const uint8_t player) const;
-    std::string ToString() const;
-    std::string BettingSequence(uint8_t round) const;
-
-   private:
-    ACPCGame* game_;
-    std::unique_ptr<State> acpcState_;
-  };
-
- public:
   ACPCGame(const std::string& gameDef);
-  ACPCGame(const ACPCGame& game);
+  ACPCGame(const ACPCGame& other);
   virtual ~ACPCGame();
 
   std::string ToString() const;
   bool IsLimitGame() const;
   uint8_t GetNbRounds() const;
-  uint8_t GetNbPlayers() const;
+  int GetNbPlayers() const;
+  // Returns the number of private cards for each player in this game.
   uint8_t GetNbHoleCardsRequired() const;
   uint8_t GetNbBoardCardsRequired(uint8_t round) const;
   uint8_t NumSuitsDeck() const;
@@ -78,11 +83,12 @@ class ACPCGame {
   uint32_t BlindSize(uint8_t player) const;
   uint8_t GetTotalNbBoardCards() const;
 
- private:
-  std::unique_ptr<Game> acpcGame_;
   uint32_t handId_;
+  std::unique_ptr<RawACPCGame> acpc_game_;
 };
 
-}  // namespace open_spiel::universal_poker::acpc_cpp
+}  // namespace acpc_cpp
+}  // namespace universal_poker
+}  // namespace open_spiel
 
 #endif  // OPEN_SPIEL_ACPC_GAME_H
