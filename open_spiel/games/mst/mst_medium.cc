@@ -106,8 +106,10 @@ void MstState::DoApplyAction(Action move) {
   AddEdge(move); //adds the edge to the adj_list
 
   reward_ = -weights_[move];
-  if (!ValidEdge(move))
-    reward_ *= 100;
+  if (!ValidEdge(move)){
+    reward_ = INT_MIN/2; //change to -inf
+    gameOver = true;
+  }
 
   total_rewards_ += reward_;
   num_moves_ += 1;
@@ -289,20 +291,20 @@ std::string MstState::ToString() const {
 
 bool MstState::IsTerminal() const {
   //return outcome_ != kInvalidPlayer || HasNMinus1Edges();
-  return outcome_ != kInvalidPlayer || HasNMinus1Edges();// && IsConnected());
+  return outcome_ != kInvalidPlayer || HasNMinus1Edges() || gameOver;// && IsConnected());
 }
 
-std::string MstState::InformationState(Player player) const {
+std::string MstState::InformationStateString(Player player) const {
   return HistoryString();
 }
 
-std::string MstState::Observation(Player player) const {
+std::string MstState::ObservationString(Player player) const {
   SPIEL_CHECK_GE(player, 0);
   SPIEL_CHECK_LT(player, num_players_);
   return ToString();
 }
 
-void MstState::ObservationAsNormalizedVector(
+void MstState::ObservationTensor(
     Player player, std::vector<double>* values) const {
   SPIEL_CHECK_GE(player, 0);
   SPIEL_CHECK_LT(player, num_players_);

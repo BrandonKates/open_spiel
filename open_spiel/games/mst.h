@@ -61,9 +61,9 @@ class MstState : public State {
   bool IsTerminal() const override;
   std::vector<double> Returns() const override { std::vector<double> temp_ = {total_rewards_}; return temp_;};
   std::vector<double> Rewards() const override { std::vector<double> temp_ = {reward_}; return temp_;};
-  std::string InformationState(Player player) const override;
-  std::string Observation(Player player) const override;
-  void ObservationAsNormalizedVector(
+  std::string InformationStateString(Player player) const override;
+  std::string ObservationString(Player player) const override;
+  void ObservationTensor(
       Player player, std::vector<double>* values) const override;
   std::unique_ptr<State> Clone() const override;
   void UndoAction(Player player, Action move) override;
@@ -121,7 +121,7 @@ class MstGame : public Game {
   std::shared_ptr<const Game> Clone() const override {
     return std::shared_ptr<const Game>(new MstGame(*this));
   }
-  std::vector<int> ObservationNormalizedVectorShape() const override {
+  std::vector<int> ObservationTensorShape() const override {
     return {kEdgeStates, kNumNodes, kNumNodes};
   }
   int MaxGameLength() const { return num_nodes_ * num_nodes_; }
