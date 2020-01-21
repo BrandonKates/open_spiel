@@ -22,6 +22,7 @@
 #include <string>
 #include <vector>
 
+#include "open_spiel/abseil-cpp/absl/algorithm/container.h"
 #include "open_spiel/abseil-cpp/absl/strings/str_cat.h"
 #include "open_spiel/simultaneous_move_game.h"
 #include "open_spiel/spiel.h"
@@ -29,10 +30,26 @@
 namespace open_spiel {
 namespace algorithms {
 
-std::pair<std::vector<std::unique_ptr<State>>, std::vector<double>>
-GetStateDistribution(const State& state, const Policy* opponent_policy) {
+std::vector<double> Normalize(const std::vector<double>& weights) {
+  std::vector<double> probs(weights);
+  const double normalizer = absl::c_accumulate(weights, 0.);
+  absl::c_for_each(probs, [&probs, normalizer](double& w) {
+    w = (normalizer == 0.0 ? 1.0 / probs.size() : w / normalizer);
+  });
+  return probs;
+}
+
+HistoryDistribution GetStateDistribution(const State& state,
+                                         const Policy* opponent_policy) {
   std::shared_ptr<const Game> game = state.GetGame();
   GameType game_type = game->GetType();
+  if (game_type.information == GameType::Information::kPerfectInformation) {
+    HistoryDistribution dist;
+    // We can't use brace initialization here as it triggers the copy ctor.
+    dist.first.push_back(state.Clone());
+    dist.second.push_back(1.);
+    return dist;
+  }
   SPIEL_CHECK_EQ(game_type.information,
                  GameType::Information::kImperfectInformation);
   SPIEL_CHECK_EQ(game_type.dynamics, GameType::Dynamics::kSequential);
@@ -134,13 +151,62 @@ GetStateDistribution(const State& state, const Policy* opponent_policy) {
   }
 
   // Now normalize the probs
-  const double normalizer =
-      std::accumulate(final_probs.begin(), final_probs.end(), 0.0);
-  for (auto& prob : final_probs) {
-    prob = (normalizer == 0.0 ? 1.0 / probs.size() : prob / normalizer);
-  }
 
-  return {std::move(final_states), final_probs};
+  return {std::move(final_states), Normalize(final_probs)};
+}
+
+std::unique_ptr<HistoryDistribution> UpdateIncrementalStateDistribution(
+    const State& state, const Policy* opponent_policy, int player_id,
+    std::unique_ptr<HistoryDistribution> previous) {
+  if (previous == nullptr) previous = std::make_unique<HistoryDistribution>();
+  if (previous->first.empty()) {
+    // If the previous pair is empty, then we have to do a BFS to find all
+    // relevant nodes:
+    return std::make_unique<HistoryDistribution>(
+        GetStateDistribution(state, opponent_policy));
+  }
+  // The current state must be one action ahead of the dist ones.
+  const std::vector<Action> history = state.History();
+  Action action = history.back();
+  for (int i = 0; i < previous->first.size(); ++i) {
+    std::unique_ptr<State>& parent = previous->first[i];
+    double& prob = previous->second[i];
+    if (Near(prob, 0.)) continue;
+    SPIEL_CHECK_EQ(history.size(), parent->History().size() + 1);
+    switch (parent->GetType()) {
+      case StateType::kChance: {
+        open_spiel::ActionsAndProbs outcomes = parent->ChanceOutcomes();
+        double action_prob = GetProb(outcomes, action);
+
+        // If we don't find the chance outcome, then the state we're in is
+        // impossible, so we set it to zero.
+        if (action_prob == -1) {
+          prob = 0;
+          continue;
+        }
+        SPIEL_CHECK_PROB(action_prob);
+        prob *= action_prob;
+        break;
+      }
+      case StateType::kDecision: {
+        if (parent->CurrentPlayer() == player_id) break;
+        open_spiel::ActionsAndProbs policy =
+            opponent_policy->GetStatePolicy(*parent);
+        double action_prob = GetProb(policy, action);
+        SPIEL_CHECK_PROB(action_prob);
+        prob *= action_prob;
+        break;
+      }
+      case StateType::kTerminal:
+        ABSL_FALLTHROUGH_INTENDED;
+      default:
+        SpielFatalError("Unknown state type.");
+    }
+    if (prob == 0) continue;
+    parent->ApplyAction(action);
+  }
+  previous->second = Normalize(previous->second);
+  return previous;
 }
 
 }  // namespace algorithms

@@ -23,6 +23,7 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
 
+from open_spiel.python.games import tic_tac_toe
 import pyspiel
 
 # Put a bound on length of game so test does not timeout.
@@ -60,6 +61,8 @@ SPIEL_MULTIPLAYER_GAMES_LIST = [
     for p in range(max(g.min_num_players, 2), 1 + min(g.max_num_players, 6))
     if g.max_num_players > 2 and g.max_num_players > g.min_num_players and
     g.short_name != "tiny_hanabi"  # default payoff only works for 2p
+    # cannot change the number of players without changing other parameters
+    and g.short_name != "universal_poker"
 ]
 assert len(SPIEL_MULTIPLAYER_GAMES_LIST) >= 35, len(
     SPIEL_MULTIPLAYER_GAMES_LIST)
@@ -88,18 +91,19 @@ class GamesSimTest(parameterized.TestCase):
     self.assertEqual(str(state), str(state_clone))
     self.assertEqual(state.history(), state_clone.history())
 
-  def serialize_deserialize(self, game, state):
+  def serialize_deserialize(self, game, state, check_pyspiel_serialization):
     # OpenSpiel native serialization
-    ser_str = pyspiel.serialize_game_and_state(game, state)
-    new_game, new_state = pyspiel.deserialize_game_and_state(ser_str)
-    self.assertEqual(str(game), str(new_game))
-    self.assertEqual(str(state), str(new_state))
+    if check_pyspiel_serialization:
+      ser_str = pyspiel.serialize_game_and_state(game, state)
+      new_game, new_state = pyspiel.deserialize_game_and_state(ser_str)
+      self.assertEqual(str(game), str(new_game))
+      self.assertEqual(str(state), str(new_state))
     # Pickle serialization + deserialization (of the state).
     pickled_state = pickle.dumps(state)
     unpickled_state = pickle.loads(pickled_state)
     self.assertEqual(str(state), str(unpickled_state))
 
-  def sim_game(self, game):
+  def sim_game(self, game, check_pyspiel_serialization=True):
     min_utility = game.min_utility()
     max_utility = game.max_utility()
     self.assertLess(min_utility, max_utility)
@@ -120,7 +124,7 @@ class GamesSimTest(parameterized.TestCase):
 
       # Serialize/Deserialize is costly. Only do it every power of 2 actions.
       if total_actions >= next_serialize_check:
-        self.serialize_deserialize(game, state)
+        self.serialize_deserialize(game, state, check_pyspiel_serialization)
         next_serialize_check *= 2
 
       # The state can be three different types: chance node,
@@ -196,6 +200,14 @@ class GamesSimTest(parameterized.TestCase):
     # make a smaller lower win score
     game = pyspiel.load_game("pig(players=2,winscore=15)")
     self.sim_game(game)
+
+  def test_python_tic_tac_toe(self):
+    # run this test to a Python-only game
+    game = tic_tac_toe.TicTacToeGame()
+    for _ in range(0, 100):
+      # cannot use pyspiel's serialization since the python-only games don't
+      # implement them
+      self.sim_game(game, False)
 
 
 if __name__ == "__main__":

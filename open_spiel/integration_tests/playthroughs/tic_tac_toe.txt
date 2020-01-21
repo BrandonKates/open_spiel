@@ -1,5 +1,4 @@
 game: tic_tac_toe
-seed: 2509889034
 
 GameType.chance_mode = ChanceMode.DETERMINISTIC
 GameType.dynamics = Dynamics.SEQUENTIAL
@@ -29,8 +28,10 @@ MaxGameLength() = 9
 ToString() = "tic_tac_toe()"
 
 # State 0
+# ...
+# ...
+# ...
 IsTerminal() = False
-ToString() = "...\n...\n..."
 History() = []
 HistoryString() = ""
 IsChanceNode() = False
@@ -45,14 +46,16 @@ ObservationTensor(1) = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0
 Rewards() = [0.0, 0.0]
 Returns() = [0.0, 0.0]
 LegalActions() = [0, 1, 2, 3, 4, 5, 6, 7, 8]
-StringLegalActions() = ["x(0,0)", "x(1,0)", "x(2,0)", "x(0,1)", "x(1,1)", "x(2,1)", "x(0,2)", "x(1,2)", "x(2,2)"]
+StringLegalActions() = ["x(0,0)", "x(0,1)", "x(0,2)", "x(1,0)", "x(1,1)", "x(1,2)", "x(2,0)", "x(2,1)", "x(2,2)"]
 
 # Apply action "x(2,2)"
 action: 8
 
 # State 1
+# ...
+# ...
+# ..x
 IsTerminal() = False
-ToString() = "...\n...\n..x"
 History() = [8]
 HistoryString() = "8"
 IsChanceNode() = False
@@ -67,14 +70,16 @@ ObservationTensor(1) = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0
 Rewards() = [0.0, 0.0]
 Returns() = [0.0, 0.0]
 LegalActions() = [0, 1, 2, 3, 4, 5, 6, 7]
-StringLegalActions() = ["o(0,0)", "o(1,0)", "o(2,0)", "o(0,1)", "o(1,1)", "o(2,1)", "o(0,2)", "o(1,2)"]
+StringLegalActions() = ["o(0,0)", "o(0,1)", "o(0,2)", "o(1,0)", "o(1,1)", "o(1,2)", "o(2,0)", "o(2,1)"]
 
-# Apply action "o(0,1)"
+# Apply action "o(1,0)"
 action: 3
 
 # State 2
+# ...
+# o..
+# ..x
 IsTerminal() = False
-ToString() = "...\no..\n..x"
 History() = [8, 3]
 HistoryString() = "8 3"
 IsChanceNode() = False
@@ -89,14 +94,16 @@ ObservationTensor(1) = [1.0, 1.0, 1.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0
 Rewards() = [0.0, 0.0]
 Returns() = [0.0, 0.0]
 LegalActions() = [0, 1, 2, 4, 5, 6, 7]
-StringLegalActions() = ["x(0,0)", "x(1,0)", "x(2,0)", "x(1,1)", "x(2,1)", "x(0,2)", "x(1,2)"]
+StringLegalActions() = ["x(0,0)", "x(0,1)", "x(0,2)", "x(1,1)", "x(1,2)", "x(2,0)", "x(2,1)"]
 
-# Apply action "x(0,2)"
+# Apply action "x(2,0)"
 action: 6
 
 # State 3
+# ...
+# o..
+# x.x
 IsTerminal() = False
-ToString() = "...\no..\nx.x"
 History() = [8, 3, 6]
 HistoryString() = "8 3 6"
 IsChanceNode() = False
@@ -111,14 +118,16 @@ ObservationTensor(1) = [1.0, 1.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0
 Rewards() = [0.0, 0.0]
 Returns() = [0.0, 0.0]
 LegalActions() = [0, 1, 2, 4, 5, 7]
-StringLegalActions() = ["o(0,0)", "o(1,0)", "o(2,0)", "o(1,1)", "o(2,1)", "o(1,2)"]
+StringLegalActions() = ["o(0,0)", "o(0,1)", "o(0,2)", "o(1,1)", "o(1,2)", "o(2,1)"]
 
 # Apply action "o(0,0)"
 action: 0
 
 # State 4
+# o..
+# o..
+# x.x
 IsTerminal() = False
-ToString() = "o..\no..\nx.x"
 History() = [8, 3, 6, 0]
 HistoryString() = "8 3 6 0"
 IsChanceNode() = False
@@ -133,14 +142,16 @@ ObservationTensor(1) = [0.0, 1.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0
 Rewards() = [0.0, 0.0]
 Returns() = [0.0, 0.0]
 LegalActions() = [1, 2, 4, 5, 7]
-StringLegalActions() = ["x(1,0)", "x(2,0)", "x(1,1)", "x(2,1)", "x(1,2)"]
+StringLegalActions() = ["x(0,1)", "x(0,2)", "x(1,1)", "x(1,2)", "x(2,1)"]
 
-# Apply action "x(2,0)"
+# Apply action "x(0,2)"
 action: 2
 
 # State 5
+# o.x
+# o..
+# x.x
 IsTerminal() = False
-ToString() = "o.x\no..\nx.x"
 History() = [8, 3, 6, 0, 2]
 HistoryString() = "8 3 6 0 2"
 IsChanceNode() = False
@@ -155,14 +166,16 @@ ObservationTensor(1) = [0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0
 Rewards() = [0.0, 0.0]
 Returns() = [0.0, 0.0]
 LegalActions() = [1, 4, 5, 7]
-StringLegalActions() = ["o(1,0)", "o(1,1)", "o(2,1)", "o(1,2)"]
+StringLegalActions() = ["o(0,1)", "o(1,1)", "o(1,2)", "o(2,1)"]
 
-# Apply action "o(1,0)"
+# Apply action "o(0,1)"
 action: 1
 
 # State 6
+# oox
+# o..
+# x.x
 IsTerminal() = False
-ToString() = "oox\no..\nx.x"
 History() = [8, 3, 6, 0, 2, 1]
 HistoryString() = "8 3 6 0 2 1"
 IsChanceNode() = False
@@ -177,14 +190,16 @@ ObservationTensor(1) = [0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0
 Rewards() = [0.0, 0.0]
 Returns() = [0.0, 0.0]
 LegalActions() = [4, 5, 7]
-StringLegalActions() = ["x(1,1)", "x(2,1)", "x(1,2)"]
+StringLegalActions() = ["x(1,1)", "x(1,2)", "x(2,1)"]
 
-# Apply action "x(2,1)"
+# Apply action "x(1,2)"
 action: 5
 
 # State 7
+# oox
+# o.x
+# x.x
 IsTerminal() = True
-ToString() = "oox\no.x\nx.x"
 History() = [8, 3, 6, 0, 2, 1, 5]
 HistoryString() = "8 3 6 0 2 1 5"
 IsChanceNode() = False

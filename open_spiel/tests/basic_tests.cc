@@ -16,6 +16,8 @@
 
 #include <iostream>
 #include <memory>
+#include <numeric>
+#include <optional>
 #include <random>
 #include <set>
 #include <string>
@@ -33,6 +35,7 @@ namespace {
 
 constexpr int kInvalidHistoryPlayer = -300;
 constexpr int kInvalidHistoryAction = -301;
+constexpr double kUtilitySumTolerance = 1e-9;
 
 // Information about the simulation history. Used to track past states and
 // actions for rolling back simulations via UndoAction, and check History.
@@ -187,6 +190,32 @@ void TestHistoryContainsActions(const Game& game,
       SPIEL_CHECK_EQ(history_item.state->History(), actions);
     }
     actions.push_back(history_item.action);
+  }
+}
+
+void CheckReturnsSum(const Game& game, const State& state) {
+  std::vector<double> returns = state.Returns();
+  double rsum = std::accumulate(returns.begin(), returns.end(), 0.0);
+
+  switch (game.GetType().utility) {
+    case GameType::Utility::kZeroSum: {
+      SPIEL_CHECK_TRUE(Near(rsum, 0.0, kUtilitySumTolerance));
+      break;
+    }
+    case GameType::Utility::kConstantSum: {
+      SPIEL_CHECK_TRUE(Near(rsum, game.UtilitySum(), kUtilitySumTolerance));
+      break;
+    }
+    case GameType::Utility::kIdentical: {
+      for (int i = 1; i < returns.size(); ++i) {
+        SPIEL_CHECK_TRUE(
+            Near(returns[i], returns[i - 1], kUtilitySumTolerance));
+      }
+      break;
+    }
+    case GameType::Utility::kGeneralSum: {
+      break;
+    }
   }
 }
 
@@ -360,6 +389,10 @@ void RandomSimulation(std::mt19937* rng, const Game& game, bool undo,
     }
   }
 
+  // Check that the returns satisfy the constraints based on the game type.
+  CheckReturnsSum(game, *state);
+
+  // Now, check each individual return is within bounds.
   auto returns = state->Returns();
   SPIEL_CHECK_EQ(returns.size(), game.NumPlayers());
   for (Player player = 0; player < game.NumPlayers(); player++) {
@@ -413,28 +446,57 @@ std::string ChanceOutcomeStr(const ActionsAndProbs& chance_outcomes) {
 }
 
 // Check chance outcomes in a state and all child states.
+// We check that:
+// - That LegalActions(kChancePlayerId) (which often defaults to the actions in
+//   ChanceOutcomes) and LegalActions() return the same result.
+// - All the chance outcome actions are legal actions
+// - All the chance outcome actions are different from each other.
+// - That the probabilities are within [0, 1] and sum to 1.
 void CheckChanceOutcomes(const State& state) {
   if (state.IsTerminal()) return;
   if (state.IsChanceNode()) {
     auto legal_actions = state.LegalActions(kChancePlayerId);
+    auto default_legal_actions = state.LegalActions();
+    if (legal_actions != default_legal_actions) {
+      SpielFatalError(absl::StrCat(
+          "Legalactions() and LegalActions(kChancePlayerId) do not give the "
+          "same result:",
+          "\nLegalActions():                ",
+          absl::StrJoin(default_legal_actions, ", "),
+          "\nLegalActions(kChancePlayerId): ",
+          absl::StrJoin(legal_actions, ", ")));
+    }
     std::set<Action> legal_action_set(legal_actions.begin(),
                                       legal_actions.end());
     auto chance_outcomes = state.ChanceOutcomes();
+
+    std::vector<Action> chance_outcome_actions;
     double sum = 0;
-    for (auto outcome : chance_outcomes) {
-      if (legal_action_set.count(outcome.first) == 0) {
+    for (const auto& [action, prob] : chance_outcomes) {
+      chance_outcome_actions.push_back(action);
+      if (legal_action_set.count(action) == 0) {
         SpielFatalError(absl::StrCat("LegalActions()=[",
                                      absl::StrJoin(legal_actions, ", "),
                                      "] inconsistent with ChanceOutcomes()=",
                                      ChanceOutcomeStr(chance_outcomes), "."));
       }
-      if (outcome.second <= 0. || outcome.second > 1) {
-        SpielFatalError(
-            absl::StrCat("Invalid probability for outcome: P(", outcome.first,
-                         ")=", outcome.second,
-                         "; all outcomes=", ChanceOutcomeStr(chance_outcomes)));
+      if (prob <= 0. || prob > 1) {
+        SpielFatalError(absl::StrCat(
+            "Invalid probability for outcome: P(", action, ")=", prob,
+            "; all outcomes=", ChanceOutcomeStr(chance_outcomes)));
       }
-      sum += outcome.second;
+      sum += prob;
+    }
+    std::set<Action> chance_outcome_actions_set(chance_outcome_actions.begin(),
+                                                chance_outcome_actions.end());
+    if (chance_outcome_actions.size() != chance_outcome_actions_set.size()) {
+      std::sort(chance_outcome_actions.begin(), chance_outcome_actions.end());
+      SpielFatalError(absl::StrCat(
+          "There are some duplicate actions in ChanceOutcomes\n. There are: ",
+          chance_outcome_actions_set.size(), " unique legal actions over ",
+          chance_outcome_actions.size(),
+          " chance outcome actions.\n Sorted legal actions:\n",
+          absl::StrJoin(chance_outcome_actions, ", ")));
     }
     constexpr double eps = 1e-5;
     if (sum < 1 - eps || sum > 1 + eps) {
@@ -446,9 +508,8 @@ void CheckChanceOutcomes(const State& state) {
   // Handles chance nodes, player nodes, including simultaneous nodes if
   // supported.
   for (auto action : state.LegalActions()) {
-    auto clone = state.Clone();
-    clone->ApplyAction(action);
-    CheckChanceOutcomes(*clone);
+    auto next_state = state.Child(action);
+    CheckChanceOutcomes(*next_state);
   }
 }
 

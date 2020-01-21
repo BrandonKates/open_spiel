@@ -18,6 +18,11 @@
 # The following should be easy to setup as a submodule:
 # https://git-scm.com/docs/git-submodule
 
+die() {
+  echo "$*" 1>&2
+  exit 1
+}
+
 set -e  # exit when any command fails
 set -x
 
@@ -77,10 +82,39 @@ if [[ ${BUILD_WITH_ACPC:-"ON"} == "ON" ]] && [[ ! -d ${DIR} ]]; then
   git clone -b 'master' --single-branch --depth 1  https://github.com/jblespiau/project_acpc_server.git ${DIR}
 fi
 
-
 # 2. Install other required system-wide dependencies
+
+# Install Julia if required and not present already.
+if [[ ${BUILD_WITH_JULIA:-"OFF"} == "ON" ]]; then
+  # Check that Julia is in the path.
+  if [[ ! -x `which julia` ]]
+  then
+    echo -e "\e[33mWarning: julia not in your PATH. Trying \$HOME/.local/bin\e[0m"
+    PATH=${PATH}:${HOME}/.local/bin
+  fi
+
+  if which julia >/dev/null; then
+    JULIA_VERSION_INFO=`julia --version`
+    echo -e "\e[33m$JULIA_VERSION_INFO is already installed.\e[0m"
+  else
+    JULIA_INSTALLER="open_spiel/scripts/jill.sh"
+    if [[ ! -f $JULIA_INSTALLER ]]; then
+    curl https://raw.githubusercontent.com/abelsiqueira/jill/master/jill.sh -o jill.sh
+    mv jill.sh $JULIA_INSTALLER
+    fi
+    JULIA_VERSION=1.3.1 bash $JULIA_INSTALLER -y
+    # Should install in $HOME/.local/bin which was added to the path above
+    [[ -x `which julia` ]] || die "julia not found PATH after install."
+  fi
+
+  # Install dependencies.
+  # TODO(author11) Remove the special-case CxxWrap installation. This may require waiting for v0.9 to be officially released.
+  julia --project="${MYDIR}/open_spiel/julia" -e 'using Pkg; Pkg.instantiate(); Pkg.add(Pkg.PackageSpec(name="CxxWrap", rev="0c82e3e383ddf2db1face8ece22d0a552f0ca11a"));'
+fi
+
+# Install other system-wide packages.
 if [[ "$OSTYPE" == "linux-gnu" ]]; then
-  EXT_DEPS="virtualenv cmake python3 python3-dev python3-pip python3-setuptools python3-wheel"
+  EXT_DEPS="virtualenv clang cmake python3 python3-dev python3-pip python3-setuptools python3-wheel"
   APT_GET=`which apt-get`
   if [ "$APT_GET" = "" ]
   then
@@ -106,8 +140,9 @@ if [[ "$OSTYPE" == "linux-gnu" ]]; then
     sudo update-alternatives --install /usr/bin/python3 python3 /usr/bin/python${OS_PYTHON_VERSION} 10
   fi
 elif [[ "$OSTYPE" == "darwin"* ]]; then  # Mac OSX
-  [[ -x "$(type python3)" ]] || brew install python3 || echo "** Warning: failed 'brew install python3' -- continuing"
-  [[ -x "$(type g++-7)" ]] || brew install gcc@7 || echo "** Warning: failed 'brew install gcc@7' -- continuing"
+  [[ -x `which realpath` ]] || brew install coreutils || echo "** Warning: failed 'brew install coreutils' -- continuing"
+  [[ -x `which python3` ]] || brew install python3 || echo "** Warning: failed 'brew install python3' -- continuing"
+  [[ -x `which clang++` ]] || die "Clang not found. Please install or upgrade XCode and run the command-line developer tools"
   curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
   python3 get-pip.py
   pip3 install virtualenv
@@ -116,5 +151,3 @@ else
        "Feel free to contribute the install for a new OS."
   exit 1
 fi
-
-

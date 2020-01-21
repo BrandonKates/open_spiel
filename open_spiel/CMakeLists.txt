@@ -11,11 +11,14 @@ module which favours Python 3 over Python 2 if both are available.")
 set (CMAKE_CXX_STANDARD 17)
 if(APPLE)
   # On MacOS:
-  #   -Werror causes problems with abseil on MacOS
   #   -undefined dynamic_lookup is necessary for pybind11 linking
-  set (CMAKE_CXX_FLAGS "-w -undefined dynamic_lookup")
+  set (CMAKE_CXX_FLAGS "-Wno-everything -w -undefined dynamic_lookup")
+
+  # On MacOS, we need this so that CMake will use the right Python if the user
+  # has a virtual environment active
+  set (CMAKE_FIND_FRAMEWORK LAST)
 else()
-  set (CMAKE_CXX_FLAGS "-Werror")
+  set (CMAKE_CXX_FLAGS "-Wno-everything")
 endif()
 
 # Position-independent code is needed for Python extension modules.
@@ -63,6 +66,14 @@ endif()
 set (BUILD_WITH_ACPC $ENV{BUILD_WITH_ACPC})
 message("${BoldYellow}BUILD_WITH_ACPC: ${BUILD_WITH_ACPC} ${ColourReset}")
 
+set (BUILD_WITH_JULIA OFF CACHE BOOL "Build binary for Julia.")
+if(NOT DEFINED ENV{BUILD_WITH_JULIA})
+    message("${BoldRed}BUILD_WITH_JULIA not set. Defaults to OFF${ColourReset}")
+    set (ENV{BUILD_WITH_JULIA} OFF)
+endif()
+set (BUILD_WITH_JULIA $ENV{BUILD_WITH_JULIA})
+message("${BoldYellow}BUILD_WITH_JULIA: ${BUILD_WITH_JULIA} ${ColourReset}")
+
 ##
 
 
@@ -89,7 +100,8 @@ set (OPEN_SPIEL_CORE_FILES
   simultaneous_move_game.cc
   spiel_utils.h
   spiel_utils.cc
-  tensor_view.h
+  tensor_game.h
+  tensor_game.cc
 )
 
 set (OPEN_SPIEL_QUERY_FILES query.cc query.h)
@@ -125,6 +137,7 @@ set (OPEN_SPIEL_OBJECTS
   $<TARGET_OBJECTS:open_spiel_query>
   $<TARGET_OBJECTS:bridge_double_dummy_solver>
   $<TARGET_OBJECTS:algorithms>
+  $<TARGET_OBJECTS:utils>
 )
 if (BUILD_WITH_HANABI)
   set(OPEN_SPIEL_OBJECTS ${OPEN_SPIEL_OBJECTS} $<TARGET_OBJECTS:hanabi_learning_environment>)
@@ -132,7 +145,6 @@ endif()
 if (BUILD_WITH_ACPC)
   set(OPEN_SPIEL_OBJECTS ${OPEN_SPIEL_OBJECTS} $<TARGET_OBJECTS:universal_poker_clib> $<TARGET_OBJECTS:universal_poker_lib>)
 endif()
-
 
 # We have the parent of this directory in the include path, so that we can
 # include for example "open_spiel/spiel.h" (assuming this directory is named
@@ -145,3 +157,8 @@ add_subdirectory (games)
 add_subdirectory (game_transforms)
 add_subdirectory (tests)
 add_subdirectory (python)
+add_subdirectory (utils)
+
+if (BUILD_WITH_JULIA)
+  add_subdirectory (julia)
+endif()

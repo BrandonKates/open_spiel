@@ -99,6 +99,13 @@ class MatrixGame : public NormalFormGame {
     return (player == Player{0} ? row_utilities_[Index(row, col)]
                                 : col_utilities_[Index(row, col)]);
   }
+  const std::vector<double>& RowUtilities() const { return row_utilities_; }
+  const std::vector<double>& ColUtilities() const { return col_utilities_; }
+  const std::vector<double>& PlayerUtilities(
+      const Player player) const {
+    SPIEL_CHECK_TRUE(player == Player{0} || player == Player{1});
+    return (player == Player{0} ? row_utilities_ : col_utilities_);
+  }
   const std::string& RowActionName(int row) const {
     return row_action_names_[row];
   }
@@ -119,7 +126,7 @@ class MatrixState : public NFGState {
   explicit MatrixState(std::shared_ptr<const Game> game);
   explicit MatrixState(const MatrixState&) = default;
 
-  virtual std::vector<Action> LegalActions(Player player) const {
+  std::vector<Action> LegalActions(Player player) const override {
     if (IsTerminal()) return {};
     if (player == kSimultaneousPlayerId) {
       return LegalFlatJointActions();
@@ -133,7 +140,7 @@ class MatrixState : public NFGState {
 
   std::string ToString() const override;
 
-  virtual std::string ActionToString(Player player, Action action_id) const {
+  std::string ActionToString(Player player, Action action_id) const override {
     if (player == kSimultaneousPlayerId)
       return FlatJointActionToString(action_id);
     else if (player == kRowPlayer)
@@ -142,9 +149,9 @@ class MatrixState : public NFGState {
       return matrix_game_->ColActionName(action_id);
   }
 
-  virtual bool IsTerminal() const { return !joint_move_.empty(); }
+  bool IsTerminal() const override { return !joint_move_.empty(); }
 
-  virtual std::vector<double> Returns() const {
+  std::vector<double> Returns() const override {
     if (IsTerminal()) {
       return {matrix_game_->RowUtility(joint_move_[0], joint_move_[1]),
               matrix_game_->ColUtility(joint_move_[0], joint_move_[1])};
@@ -153,12 +160,12 @@ class MatrixState : public NFGState {
     }
   }
 
-  virtual std::unique_ptr<State> Clone() const {
+  std::unique_ptr<State> Clone() const override {
     return std::unique_ptr<State>(new MatrixState(*this));
   }
 
  protected:
-  virtual void DoApplyActions(const std::vector<Action>& moves) {
+  void DoApplyActions(const std::vector<Action>& moves) override {
     SPIEL_CHECK_EQ(moves.size(), 2);
     SPIEL_CHECK_GE(moves[kRowPlayer], 0);
     SPIEL_CHECK_LT(moves[kRowPlayer], matrix_game_->NumRows());
